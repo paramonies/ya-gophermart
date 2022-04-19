@@ -23,3 +23,19 @@ git fetch template && git checkout template/master .github
 ```
 
 затем добавьте полученые изменения в свой репозиторий.
+
+## Команды sql-migrate
+
+### Добавление новой миграции
+
+`sql-migrate new -env=local migration-name`
+
+### Применение миграций
+
+`sql-migrate up -env=local`
+
+### Откат миграций
+
+Откатиться на одну миграцию: `sql-migrate down -env=local`
+
+Откатиться на N миграций: `sql-migrate down -env=local -limit=N`
