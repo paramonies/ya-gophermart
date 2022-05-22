@@ -4,7 +4,7 @@ run:
 
 .PHONY: fmt
 fmt:
-	goimports -local "github.com/paramonies/ya-gophermart" -w cmd internal pkg/lg pkg/queue
+	goimports -local "github.com/paramonies/ya-gophermart" -w cmd internal pkg/log
 
 .PHONY: lint
 lint:
