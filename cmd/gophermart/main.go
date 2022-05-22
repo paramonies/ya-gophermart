@@ -4,6 +4,9 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -47,11 +50,37 @@ func main() {
 
 	addr := cfg.App.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
-	err = http.ListenAndServe(addr, newRouter())
-	if err != nil {
+
+	var srv http.Server = http.Server{
+		Addr:    addr,
+		Handler: newRouter(),
+	}
+	done := make(chan struct{})
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer func() {
+			cancel()
+			close(sigCh)
+		}()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Error(context.Background(), "failed to shut down server gracefully", err)
+			os.Exit(errorExitCode)
+		}
+		close(done)
+	}()
+
+	if err = srv.ListenAndServe(); err != http.ErrServerClosed {
 		log.Error(context.Background(), "failed to run API server", err)
 		os.Exit(errorExitCode)
 	}
+
+	<-done
+	log.Info(context.Background(), "server was shut down gracefully")
 }
 
 func convertLogLevel(lvl string) log.Level {
