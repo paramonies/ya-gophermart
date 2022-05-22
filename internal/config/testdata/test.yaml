@@ -1,0 +1,8 @@
+app:
+  run_address: "localhost:9090"
+  log_level: "info"
+db:
+  database_uri: "postgresql://postgres:123456@localhost/ya-gophermart-test?connect_timeout=10&sslmode=disable"
+  query_timeout: 2s
+ext_app:
+  accrual_system_address: "localhost:9091"

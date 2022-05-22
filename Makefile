@@ -1,4 +1,8 @@
-.PHONY: run
+.PHONY: run_cfg
+run_cfg:
+	go run cmd/gophermart/main.go --config=./configs/local.yaml
+
+.PHONY:run
 run:
 	go run cmd/gophermart/main.go
 

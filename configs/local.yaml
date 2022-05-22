@@ -1,0 +1,8 @@
+app:
+  run_address: "localhost:8090"
+  log_level: "debug"
+db:
+  database_uri: "postgresql://postgres:123456@localhost/ya-gophermart"
+  query_timeout: 1s
+ext_app:
+  accrual_system_address: "localhost:9000"

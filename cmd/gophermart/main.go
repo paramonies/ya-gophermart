@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/paramonies/ya-gophermart/internal/config"
 	"github.com/paramonies/ya-gophermart/internal/handlers"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
@@ -23,11 +24,30 @@ func main() {
 
 	log.Info(context.Background(), "start service")
 
-	logLevel := convertLogLevel("debug")
+	config.InitConfig()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Error(context.Background(), "failed to load config", err)
+		os.Exit(errorExitCode)
+	}
+
+	err = cfg.Validate()
+	if err != nil {
+		log.Error(context.Background(), "failed to validate config", err)
+		os.Exit(errorExitCode)
+	}
+
+	log.Debug(context.Background(), "config params", "run_address", cfg.App.RunAddress,
+		"log_level", cfg.App.LogLevel, "database_uri", cfg.Database.DatabaseURI, "query_timeout",
+		cfg.Database.QueryTimeout, "accrual_system_address", cfg.ExtApp.AccrualSystemAddress)
+
+	logLevel := convertLogLevel(cfg.App.LogLevel)
 	log.SetGlobalLevel(logLevel)
 	log.Info(context.Background(), "updated global logging level", "newLevel", logLevel)
 
-	err := http.ListenAndServe("localhost:8080", newRouter())
+	addr := cfg.App.RunAddress
+	log.Info(context.Background(), "start listening API server", "address", addr)
+	err = http.ListenAndServe(addr, newRouter())
 	if err != nil {
 		log.Error(context.Background(), "failed to run API server", err)
 		os.Exit(errorExitCode)
