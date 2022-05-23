@@ -5,14 +5,29 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
-func Auth() http.HandlerFunc {
+func Register(db *store.PostgresDB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Debug(context.Background(), "auth handler")
+		log.Debug(context.Background(), "register handler", "request URL", r.URL, "method", r.Method)
+
+		b, err := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			log.Error(context.Background(), "failed to read request body", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		log.Debug(context.Background(), "request body", string(b))
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, "auth method")
+		w.Write(b)
+
+		log.Debug(context.Background(), "user registered and authenticated ")
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/paramonies/ya-gophermart/internal/config"
 	"github.com/paramonies/ya-gophermart/internal/handlers"
+	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
@@ -48,12 +49,19 @@ func main() {
 	log.SetGlobalLevel(logLevel)
 	log.Info(context.Background(), "updated global logging level", "newLevel", logLevel)
 
+	db, err := store.NewPostgresDB(cfg.Database.DatabaseURI, cfg.Database.QueryTimeout)
+	if err != nil {
+		log.Error(context.Background(), "failed to create postgres DB connection", err)
+		os.Exit(errorExitCode)
+	}
+	log.Info(context.Background(), "create connection to postgres DB")
+
 	addr := cfg.App.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
 
-	var srv http.Server = http.Server{
+	var srv = http.Server{
 		Addr:    addr,
-		Handler: newRouter(),
+		Handler: newRouter(db),
 	}
 	done := make(chan struct{})
 	go func() {
@@ -93,10 +101,10 @@ func convertLogLevel(lvl string) log.Level {
 	return parsed
 }
 
-func newRouter() *chi.Mux {
+func newRouter(db *store.PostgresDB) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Get("/auth", handlers.Auth())
+	r.Post("/api/user/register", handlers.Register(db))
 	r.Method("GET", "/login", handlers.Login())
 	return r
 }

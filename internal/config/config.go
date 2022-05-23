@@ -16,7 +16,7 @@ const (
 	defaultServerAPIAddr = ":8090"
 	defaultLoggingLevel  = "debug"
 
-	defaultDatabaseURI          = "postgresql://postgres:123456@localhost/ya-gophermart"
+	defaultDatabaseURI          = "postgresql://postgres:123456@localhost/ya-gophermart?connect_timeout=10&sslmode=disable"
 	defaultDatabaseQueryTimeout = 1 * time.Second
 
 	defaultAccrualSystemAddress = ":9000"

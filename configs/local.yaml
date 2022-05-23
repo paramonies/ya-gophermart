@@ -2,7 +2,7 @@ app:
   run_address: "localhost:8090"
   log_level: "debug"
 db:
-  database_uri: "postgresql://postgres:123456@localhost/ya-gophermart"
+  database_uri: "postgresql://postgres:123456@localhost/ya-gophermart?connect_timeout=10&sslmode=disable"
   query_timeout: 1s
 ext_app:
   accrual_system_address: "localhost:9000"
