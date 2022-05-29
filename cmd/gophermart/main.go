@@ -12,6 +12,8 @@ import (
 
 	"github.com/paramonies/ya-gophermart/internal/config"
 	"github.com/paramonies/ya-gophermart/internal/handlers"
+	"github.com/paramonies/ya-gophermart/internal/middlewares"
+	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
@@ -56,12 +58,15 @@ func main() {
 	}
 	log.Info(context.Background(), "create connection to postgres DB")
 
+	ac := provider.NewAccrualClient(cfg.ExtApp.AccrualSystemAddress)
+	log.Info(context.Background(), "create accrual service client")
+
 	addr := cfg.App.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
 
 	var srv = http.Server{
 		Addr:    addr,
-		Handler: newRouter(db),
+		Handler: newRouter(db, ac),
 	}
 	done := make(chan struct{})
 	go func() {
@@ -101,10 +106,17 @@ func convertLogLevel(lvl string) log.Level {
 	return parsed
 }
 
-func newRouter(db *store.PostgresDB) *chi.Mux {
+func newRouter(db *store.PostgresDB, ac *provider.AccrualClient) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Post("/api/user/register", handlers.Register(db))
-	r.Method("GET", "/login", handlers.Login())
+	r.Method("POST", "/api/user/login", handlers.Login(db))
+
+	r.Route("/api/user", func(r chi.Router) {
+		r.Use(middlewares.VerifyCookie)
+
+		r.Post("/orders", handlers.CreateOrder(db, ac))
+		r.Get("/orders", handlers.SelectOrders(db))
+	})
 	return r
 }

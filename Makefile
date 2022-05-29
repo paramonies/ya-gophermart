@@ -25,3 +25,7 @@ env_up:
 .PHONY: env_down
 env_down:
 	docker-compose down -v --rmi local --remove-orphans
+
+.PHONY: run_accr
+run_accr:
+	cmd/accrual/accrual_darwin_amd64
