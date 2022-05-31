@@ -1,6 +1,8 @@
 package store
 
-import "github.com/paramonies/ya-gophermart/internal/dto"
+import (
+	"github.com/paramonies/ya-gophermart/internal/store/dto"
+)
 
 type Connector interface {
 	Users() UserRepoIf
@@ -9,7 +11,10 @@ type Connector interface {
 }
 
 type UserRepoIf interface {
-	CreateUser(userName, hash string) error
+	GetByName(name string) (*dto.User, error)
+	Create(userName, hash string) error
+	SetToken(userName, token string) error
+	GetByToken(token string) (*dto.User, error)
 	GetHashedPassword(login string) (*string, error)
 }
 

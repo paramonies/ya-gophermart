@@ -10,14 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 
 	"github.com/paramonies/ya-gophermart/internal/config"
-	"github.com/paramonies/ya-gophermart/internal/handlers"
-	"github.com/paramonies/ya-gophermart/internal/middlewares"
+	inhttp "github.com/paramonies/ya-gophermart/internal/http"
 	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/pkg/log"
@@ -77,7 +75,7 @@ func main() {
 
 	var srv = http.Server{
 		Addr:    addr,
-		Handler: newRouter(dbConn, ac),
+		Handler: inhttp.NewRouter(dbConn, ac),
 	}
 	done := make(chan struct{})
 	go func() {
@@ -116,25 +114,6 @@ func convertLogLevel(lvl string) log.Level {
 	}
 
 	return parsed
-}
-
-func newRouter(storage store.Connector, ac *provider.AccrualClient) *chi.Mux {
-	r := chi.NewRouter()
-
-	r.Post("/api/user/register", handlers.Register(storage))
-	r.Method("POST", "/api/user/login", handlers.Login(storage))
-
-	r.Route("/api/user", func(r chi.Router) {
-		r.Use(middlewares.VerifyCookie)
-
-		r.Post("/orders", handlers.CreateOrder(storage, ac))
-		r.Get("/orders", handlers.SelectOrders(storage))
-		r.Route("/balance", func(r chi.Router) {
-			r.Get("/", handlers.GetBalance(storage))
-		})
-	})
-
-	return r
 }
 
 func initDatabaseConnection(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {

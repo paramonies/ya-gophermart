@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/paramonies/ya-gophermart/internal/dto"
+	"github.com/paramonies/ya-gophermart/internal/store/dto"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 

@@ -2,6 +2,13 @@ package dto
 
 import "time"
 
+type User struct {
+	ID           string
+	Login        string
+	PasswordHash string
+	Token        string
+}
+
 type Order struct {
 	ID        string    `json:"id"`
 	Number    string    `json:"number"`

@@ -9,13 +9,13 @@ import (
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
-func WriteErrorAsJSON(w http.ResponseWriter, msg string, err error, code int) {
-	log.Error(context.Background(), msg, err)
+func WriteErrorAsJSON(w http.ResponseWriter, msgUser, msgLog string, err error, code int) {
+	log.Error(context.Background(), msgLog, err)
 
 	respErr := struct {
 		Err string `json:"error"`
 	}{
-		Err: err.Error(),
+		Err: msgUser,
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

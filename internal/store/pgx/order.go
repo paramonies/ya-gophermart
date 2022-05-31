@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	dto2 "github.com/paramonies/ya-gophermart/internal/store/dto"
+
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-
-	"github.com/paramonies/ya-gophermart/internal/dto"
 )
 
 var (
@@ -82,12 +82,12 @@ RETURNING id
 	return nil
 }
 
-func (r *OrderRepo) UpdateOrder(order dto.ProviderOrder) error {
+func (r *OrderRepo) UpdateOrder(order dto2.ProviderOrder) error {
 	pos := 1
 	fields := make([]string, 0)
 	values := make([]interface{}, 0)
 
-	status, err := dto.OrderStatusToStore(order.Status)
+	status, err := dto2.OrderStatusToStore(order.Status)
 	if err != nil {
 		return nil
 	}
@@ -117,7 +117,7 @@ func (r *OrderRepo) UpdateOrder(order dto.ProviderOrder) error {
 	return nil
 }
 
-func (r *OrderRepo) SelectOrders(userID string) ([]dto.Order, error) {
+func (r *OrderRepo) SelectOrders(userID string) ([]dto2.Order, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
@@ -134,9 +134,9 @@ WHERE users.id = $1
 	}
 	defer rows.Close()
 
-	var orders []dto.Order
+	var orders []dto2.Order
 	for rows.Next() {
-		var order dto.Order
+		var order dto2.Order
 		err := rows.Scan(&order.ID, &order.Number, &order.Accural, &order.Status, &order.UpdatedAt)
 		if err != nil {
 			return nil, err
