@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -9,6 +11,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/lib/pq"
+	migrate "github.com/rubenv/sql-migrate"
 
 	"github.com/paramonies/ya-gophermart/internal/config"
 	"github.com/paramonies/ya-gophermart/internal/handlers"
@@ -20,6 +25,11 @@ import (
 
 const (
 	errorExitCode = 1
+)
+
+var (
+	dbConnectTimeout = 1 * time.Second
+	MigDirName       = "migrations"
 )
 
 func main() {
@@ -51,11 +61,12 @@ func main() {
 	log.SetGlobalLevel(logLevel)
 	log.Info(context.Background(), "updated global logging level", "newLevel", logLevel)
 
-	db, err := store.NewPostgresDB(cfg.Database.DatabaseURI, cfg.Database.QueryTimeout)
+	dbPool, err := initDatabaseConnection(cfg.Database)
 	if err != nil {
-		log.Error(context.Background(), "failed to create postgres DB connection", err)
+		log.Error(context.Background(), "failed to init database connection", err)
 		os.Exit(errorExitCode)
 	}
+	dbConn := store.NewPgxConnector(dbPool, cfg.Database.QueryTimeout)
 	log.Info(context.Background(), "create connection to postgres DB")
 
 	ac := provider.NewAccrualClient(cfg.ExtApp.AccrualSystemAddress)
@@ -66,7 +77,7 @@ func main() {
 
 	var srv = http.Server{
 		Addr:    addr,
-		Handler: newRouter(db, ac),
+		Handler: newRouter(dbConn, ac),
 	}
 	done := make(chan struct{})
 	go func() {
@@ -80,6 +91,7 @@ func main() {
 			close(sigCh)
 		}()
 
+		dbPool.Close()
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Error(context.Background(), "failed to shut down server gracefully", err)
 			os.Exit(errorExitCode)
@@ -106,17 +118,55 @@ func convertLogLevel(lvl string) log.Level {
 	return parsed
 }
 
-func newRouter(db *store.PostgresDB, ac *provider.AccrualClient) *chi.Mux {
+func newRouter(storage store.Connector, ac *provider.AccrualClient) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Post("/api/user/register", handlers.Register(db))
-	r.Method("POST", "/api/user/login", handlers.Login(db))
+	r.Post("/api/user/register", handlers.Register(storage))
+	r.Method("POST", "/api/user/login", handlers.Login(storage))
 
 	r.Route("/api/user", func(r chi.Router) {
 		r.Use(middlewares.VerifyCookie)
 
-		r.Post("/orders", handlers.CreateOrder(db, ac))
-		r.Get("/orders", handlers.SelectOrders(db))
+		r.Post("/orders", handlers.CreateOrder(storage, ac))
+		r.Get("/orders", handlers.SelectOrders(storage))
+		r.Route("/balance", func(r chi.Router) {
+			r.Get("/", handlers.GetBalance(storage))
+		})
 	})
+
 	return r
+}
+
+func initDatabaseConnection(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbConnectTimeout)
+	defer cancel()
+
+	db, err := sql.Open("postgres", cfg.DatabaseURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open DB: %v", err)
+	}
+
+	rootDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	MigDirPath := fmt.Sprintf("%s/%s", rootDir, MigDirName)
+	migrations := &migrate.FileMigrationSource{
+		Dir: MigDirPath,
+	}
+
+	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply migrations: %v", err)
+	}
+
+	log.Debug(context.Background(), fmt.Sprintf("Applied %d migrations!", n))
+
+	pool, err := pgxpool.Connect(ctx, cfg.DatabaseURI)
+	if err != nil {
+		return nil, err
+	}
+
+	return pool, nil
 }

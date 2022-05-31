@@ -9,13 +9,15 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/paramonies/ya-gophermart/internal/store/pgx"
+
 	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/internal/utils"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
-func Register(db *store.PostgresDB) http.HandlerFunc {
+func Register(storage store.Connector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debug(context.Background(), "register handler", "request URL", r.URL, "method", r.Method)
 
@@ -43,7 +45,7 @@ func Register(db *store.PostgresDB) http.HandlerFunc {
 			return
 		}
 
-		err = db.CreateUser(reqBodyJSON.Login, hash)
+		err = storage.Users().CreateUser(reqBodyJSON.Login, hash)
 		if err != nil {
 			utils.WriteErrorAsJSON(w, "failed to create user in db", err, http.StatusConflict)
 			return
@@ -57,7 +59,7 @@ func Register(db *store.PostgresDB) http.HandlerFunc {
 	}
 }
 
-func Login(db *store.PostgresDB) http.Handler {
+func Login(storage store.Connector) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Debug(context.Background(), "login handler", "request URL", r.URL, "method", r.Method)
 
@@ -85,7 +87,7 @@ func Login(db *store.PostgresDB) http.Handler {
 			return
 		}
 
-		hashedPassword, err := db.GetHashedPassword(reqBodyJSON.Login)
+		hashedPassword, err := storage.Users().GetHashedPassword(reqBodyJSON.Login)
 		if err != nil {
 			utils.WriteErrorAsJSON(w, "failed to get user from db", err, http.StatusUnauthorized)
 			return
@@ -105,7 +107,7 @@ func Login(db *store.PostgresDB) http.Handler {
 	})
 }
 
-func CreateOrder(db *store.PostgresDB, ac *provider.AccrualClient) http.HandlerFunc {
+func CreateOrder(storage store.Connector, ac *provider.AccrualClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debug(context.Background(), "create order handler", "request URL", r.URL, "method", r.Method)
 
@@ -135,14 +137,14 @@ func CreateOrder(db *store.PostgresDB, ac *provider.AccrualClient) http.HandlerF
 		}
 
 		userID := cookie.Value
-		err = db.CreateOrder(orderNumber, userID)
+		err = storage.Orders().CreateOrder(orderNumber, userID)
 		if err != nil {
-			if errors.Is(err, store.ErrAlreadyCreatedByUser) {
+			if errors.Is(err, pgx.ErrAlreadyCreatedByUser) {
 				utils.WriteErrorAsJSON(w, err.Error(), err, http.StatusOK)
 				return
 			}
 
-			if errors.Is(err, store.ErrAlreadyCreatedByOtherUser) {
+			if errors.Is(err, pgx.ErrAlreadyCreatedByOtherUser) {
 				utils.WriteErrorAsJSON(w, err.Error(), err, http.StatusConflict)
 				return
 			}
@@ -151,7 +153,7 @@ func CreateOrder(db *store.PostgresDB, ac *provider.AccrualClient) http.HandlerF
 			return
 		}
 
-		go UpdateOrder(db, ac, orderNumber, userID)
+		go UpdateOrder(storage, ac, orderNumber, userID)
 
 		msg := "order accepted for processing"
 		utils.WriteMsgAsJSON(w, msg, http.StatusAccepted)
@@ -159,7 +161,7 @@ func CreateOrder(db *store.PostgresDB, ac *provider.AccrualClient) http.HandlerF
 	}
 }
 
-func SelectOrders(db *store.PostgresDB) http.HandlerFunc {
+func SelectOrders(storage store.Connector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debug(context.Background(), "select orders handler", "request URL", r.URL, "method", r.Method)
 
@@ -169,9 +171,9 @@ func SelectOrders(db *store.PostgresDB) http.HandlerFunc {
 			return
 		}
 
-		orders, err := db.SelectOrders(cookie.Value)
+		orders, err := storage.Orders().SelectOrders(cookie.Value)
 		if err != nil {
-			if errors.Is(err, store.ErrOrdersNotFound) {
+			if errors.Is(err, pgx.ErrOrdersNotFound) {
 				utils.WriteErrorAsJSON(w, "orders not found", err, http.StatusNoContent)
 				return
 			}
@@ -185,18 +187,27 @@ func SelectOrders(db *store.PostgresDB) http.HandlerFunc {
 	}
 }
 
-func UpdateOrder(db *store.PostgresDB, ac *provider.AccrualClient, orderNumber int, userID string) {
+func UpdateOrder(storage store.Connector, ac *provider.AccrualClient, orderNumber int, userID string) {
 	order, err := ac.GetOrder(orderNumber)
 	if err != nil {
 		log.Error(context.Background(), "failed to get order from provider", err)
 		return
 	}
 
-	err = db.UpdateOrder(*order)
+	err = storage.Orders().UpdateOrder(*order)
 	if err != nil {
 		log.Error(context.Background(), "failed to update order in db", err)
 		return
 	}
 
 	log.Info(context.Background(), "order updated successfully", "orderNumber", orderNumber, "userID", userID)
+}
+
+func GetBalance(storage store.Connector) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Debug(context.Background(), "get balance handler", "request URL", r.URL, "method", r.Method)
+
+		//verify auth
+
+	}
 }
