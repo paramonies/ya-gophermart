@@ -14,7 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 
-	"github.com/paramonies/ya-gophermart/internal/config"
+	"github.com/paramonies/ya-gophermart/internal/conf"
 	inhttp "github.com/paramonies/ya-gophermart/internal/http"
 	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
@@ -38,39 +38,56 @@ func main() {
 
 	log.Info(context.Background(), "start service")
 
-	config.InitConfig()
-	cfg, err := config.LoadConfig()
+	var cfg conf.Config
+	err := cfg.Init()
 	if err != nil {
 		log.Error(context.Background(), "failed to load config", err)
 		os.Exit(errorExitCode)
 	}
 
-	err = cfg.Validate()
-	if err != nil {
-		log.Error(context.Background(), "failed to validate config", err)
-		os.Exit(errorExitCode)
-	}
+	log.Debug(context.Background(), "config params", "run_address", cfg.RunAddress,
+		"database_uri", cfg.DatabaseURI, "query_timeout",
+		"accrual_system_address", cfg.AccrualSystemAddress)
 
-	log.Debug(context.Background(), "config params", "run_address", cfg.App.RunAddress,
-		"log_level", cfg.App.LogLevel, "database_uri", cfg.Database.DatabaseURI, "query_timeout",
-		cfg.Database.QueryTimeout, "accrual_system_address", cfg.ExtApp.AccrualSystemAddress)
+	//config.InitConfig()
+	//cfg, err := config.LoadConfig()
+	//if err != nil {
+	//	log.Error(context.Background(), "failed to load config", err)
+	//	os.Exit(errorExitCode)
+	//}
+	//
+	//err = cfg.Validate()
+	//if err != nil {
+	//	log.Error(context.Background(), "failed to validate config", err)
+	//	os.Exit(errorExitCode)
+	//}
+	//
+	//log.Debug(context.Background(), "config params", "run_address", cfg.App.RunAddress,
+	//	"log_level", cfg.App.LogLevel, "database_uri", cfg.Database.DatabaseURI, "query_timeout",
+	//	cfg.Database.QueryTimeout, "accrual_system_address", cfg.ExtApp.AccrualSystemAddress)
 
-	logLevel := convertLogLevel(cfg.App.LogLevel)
+	//logLevel := convertLogLevel(cfg.App.LogLevel)
+
+	logLevel := convertLogLevel("debug")
 	log.SetGlobalLevel(logLevel)
 	log.Info(context.Background(), "updated global logging level", "newLevel", logLevel)
 
-	dbPool, err := initDatabaseConnection(cfg.Database)
+	//dbPool, err := initDatabaseConnection(cfg.Database)
+	dbPool, err := initDatabaseConnection(cfg.DatabaseURI)
 	if err != nil {
 		log.Error(context.Background(), "failed to init database connection", err)
 		os.Exit(errorExitCode)
 	}
-	dbConn := store.NewPgxConnector(dbPool, cfg.Database.QueryTimeout)
+	//dbConn := store.NewPgxConnector(dbPool, cfg.Database.QueryTimeout)
+	dbConn := store.NewPgxConnector(dbPool, dbConnectTimeout)
 	log.Info(context.Background(), "create connection to postgres DB")
 
-	ac := provider.NewAccrualClient(cfg.ExtApp.AccrualSystemAddress)
+	//ac := provider.NewAccrualClient(cfg.ExtApp.AccrualSystemAddress)
+	ac := provider.NewAccrualClient(cfg.AccrualSystemAddress)
 	log.Info(context.Background(), "create accrual service client")
 
-	addr := cfg.App.RunAddress
+	//addr := cfg.App.RunAddress
+	addr := cfg.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
 
 	var srv = http.Server{
@@ -116,11 +133,12 @@ func convertLogLevel(lvl string) log.Level {
 	return parsed
 }
 
-func initDatabaseConnection(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+//func initDatabaseConnection(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+func initDatabaseConnection(databaseURI string) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbConnectTimeout)
 	defer cancel()
 
-	db, err := sql.Open("postgres", cfg.DatabaseURI)
+	db, err := sql.Open("postgres", databaseURI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open DB: %v", err)
 	}
@@ -142,7 +160,7 @@ func initDatabaseConnection(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
 
 	log.Debug(context.Background(), fmt.Sprintf("Applied %d migrations!", n))
 
-	pool, err := pgxpool.Connect(ctx, cfg.DatabaseURI)
+	pool, err := pgxpool.Connect(ctx, databaseURI)
 	if err != nil {
 		return nil, err
 	}

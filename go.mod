@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	github.com/caarlos0/env/v6 v6.9.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2 // indirect
