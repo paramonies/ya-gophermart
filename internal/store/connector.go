@@ -6,7 +6,7 @@ import (
 
 type Connector interface {
 	Users() UserRepoIf
-	Orders() OrderRepoIf
+	Accruals() AccrualRepoIf
 	Withdrawns() WithdrawnRepoIf
 }
 
@@ -18,8 +18,10 @@ type UserRepoIf interface {
 	GetHashedPassword(login string) (*string, error)
 }
 
-type OrderRepoIf interface {
-	CreateOrder(orderNumber int, id string) error
+type AccrualRepoIf interface {
+	LoadOrder(orderNumber int, userID string) error
+	GetOrderByOrderNumber(orderNumber int) (*dto.Order, error)
+	GetOrderByUserID(id string) (*[]dto.Order, error)
 	UpdateOrder(order dto.ProviderOrder) error
 	SelectOrders(userID string) ([]dto.Order, error)
 }

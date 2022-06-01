@@ -1,20 +1,20 @@
 -- +migrate Up
-drop table if exists orders;
+drop table if exists accruals;
 drop type if exists order_status;
 create type order_status as ENUM ('NEW', 'PROCESSING', 'INVALID', 'PROCESSED');
-create table if not exists orders
+create table if not exists accruals
 (
     id              uuid default gen_random_uuid(),
-    number          text not null,
+    order_number    text not null,
     accrual         double precision default 0,
     user_id         uuid,
-    status          order_status not null default 'NEW',
+    order_status    order_status not null default 'NEW',
     updated_at      timestamp default now(),
 
-    constraint orders_pk primary key (id),
+    constraint accruals_pk primary key (id),
     foreign key (user_id) references users (id),
-    constraint number unique (number)
+    constraint number unique (order_number)
     );
 -- +migrate Down
-drop table orders;
+drop table accruals;
 drop type order_status;

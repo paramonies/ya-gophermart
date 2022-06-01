@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"strconv"
+	"time"
 
 	pgxv4 "github.com/jackc/pgx/v4"
 
@@ -121,92 +124,99 @@ func getUser(ctx context.Context) (*dto.User, error) {
 	return u, nil
 }
 
-func CreateOrder(storage store.Connector, ac *provider.AccrualClient) http.HandlerFunc {
+func LoadOrder(storage store.Connector, ac *provider.AccrualClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, err := getUser(r.Context())
+		user, err := getUser(r.Context())
 		if err != nil {
-			msg := "failed to get user from context"
-			utils.WriteErrorAsJSON(w, msg, msg, err, http.StatusUnauthorized)
+			utils.WriteErrorAsJSON(w, "unauthorized", "failed to get user from context", err, http.StatusUnauthorized)
+			return
 		}
 
-		//fmt.Println("!!! %s", user.Login)
-		//		orderNumberBin, err := io.ReadAll(r.Body)
-		//		defer r.Body.Close()
-		//		if err != nil {
-		//			utils.WriteErrorAsJSON(w, "failed to read order number", err, http.StatusInternalServerError)
-		//			return
-		//		}
-		//
-		//		orderNumber, err := strconv.Atoi(string(orderNumberBin))
-		//		if err != nil {
-		//			utils.WriteErrorAsJSON(w, "order number is not integer", err, http.StatusInternalServerError)
-		//			return
-		//		}
-		//
-		//		if utils.Valid(orderNumber) {
-		//			msg := "order number is invalid according to Luhn"
-		//			utils.WriteErrorAsJSON(w, msg, errors.New(msg), http.StatusInternalServerError)
-		//			return
-		//		}
-		//
-		//		cookie, err := r.Cookie("id")
-		//		if err != nil {
-		//			utils.WriteErrorAsJSON(w, "failed to get cookie", err, http.StatusInternalServerError)
-		//			return
-		//		}
-		//
-		//		userID := cookie.Value
-		//		err = storage.Orders().CreateOrder(orderNumber, userID)
-		//		if err != nil {
-		//			if errors.Is(err, pgx.ErrAlreadyCreatedByUser) {
-		//				utils.WriteErrorAsJSON(w, err.Error(), err, http.StatusOK)
-		//				return
-		//			}
-		//
-		//			if errors.Is(err, pgx.ErrAlreadyCreatedByOtherUser) {
-		//				utils.WriteErrorAsJSON(w, err.Error(), err, http.StatusConflict)
-		//				return
-		//			}
-		//
-		//			utils.WriteErrorAsJSON(w, "failed to create order", err, http.StatusInternalServerError)
-		//			return
-		//		}
-		//
-		//		go UpdateOrder(storage, ac, orderNumber, userID)
-		//
-		//		msg := "order accepted for processing"
-		//		utils.WriteMsgAsJSON(w, msg, http.StatusAccepted)
-		//		log.Debug(context.Background(), msg)
+		orderNumberBin, err := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			msg := "failed to read order number"
+			utils.WriteErrorAsJSON(w, msg, msg, err, http.StatusBadRequest)
+			return
+		}
+
+		orderNumber, err := strconv.Atoi(string(orderNumberBin))
+		if err != nil {
+			msg := "order number is not integer"
+			utils.WriteErrorAsJSON(w, msg, msg, err, http.StatusBadRequest)
+			return
+		}
+		log.Debug(context.Background(), "oder info", "orderNumber", orderNumber)
+
+		if !utils.Valid(orderNumber) {
+			msg := "order number is invalid according to Luhn"
+			utils.WriteErrorAsJSON(w, msg, msg, errors.New(msg), http.StatusUnprocessableEntity)
+			return
+		}
+
+		order, err := storage.Accruals().GetOrderByOrderNumber(orderNumber)
+		if err != nil && !errors.Is(err, pgxv4.ErrNoRows) {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get order from db", err, http.StatusInternalServerError)
+			return
+		}
+
+		if err == nil && order != nil && order.UserID != user.ID {
+			msg := "order was loaded by other user"
+			utils.WriteErrorAsJSON(w, msg, msg, nil, http.StatusConflict)
+			return
+		}
+
+		if err == nil && order != nil && order.UserID == user.ID {
+			utils.WriteMsgAsJSON(w, "order already loaded", http.StatusOK)
+			return
+		}
+
+		err = storage.Accruals().LoadOrder(orderNumber, user.ID)
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to load order to accrual table", err, http.StatusInternalServerError)
+			return
+
+		}
+
+		utils.WriteMsgAsJSON(w, "order load to processing", http.StatusAccepted)
+		log.Debug(context.Background(), "order load to accrual table")
 	}
 }
 
-//
-//func SelectOrders(storage store.Connector) http.HandlerFunc {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log.Debug(context.Background(), "select orders handler", "request URL", r.URL, "method", r.Method)
-//
-//		cookie, err := r.Cookie("token")
-//		if err != nil {
-//			utils.WriteErrorAsJSON(w, fmt.Sprintf("failed to get cookie: %v", err), errors.New("unauthorized"), http.StatusUnauthorized)
-//			return
-//		}
-//
-//		orders, err := storage.Orders().SelectOrders(cookie.Value)
-//		if err != nil {
-//			if errors.Is(err, pgx.ErrOrdersNotFound) {
-//				utils.WriteErrorAsJSON(w, "orders not found", err, http.StatusNoContent)
-//				return
-//			}
-//
-//			utils.WriteErrorAsJSON(w, "failed to get orders", err, http.StatusInternalServerError)
-//			return
-//		}
-//
-//		utils.WriteResponseAsJSON(w, orders, http.StatusOK)
-//		log.Debug(context.Background(), "getting list of orders successfully")
-//	}
-//}
-//
+func ListProcessedOrders(storage store.Connector) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := getUser(r.Context())
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "unauthorized", "failed to get user from context", err, http.StatusUnauthorized)
+			return
+		}
+
+		list, err := storage.Accruals().GetOrderByUserID(user.ID)
+		if len(*list) == 0 {
+			utils.WriteMsgAsJSON(w, "there is no order", http.StatusNoContent)
+			return
+		}
+
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get orders from accrual table", err, http.StatusInternalServerError)
+			return
+		}
+
+		orders := make([]Order, 0)
+		for _, item := range *list {
+			o := Order{
+				Number:     item.OrderNumber,
+				Status:     item.Status,
+				Accrual:    item.Accrual,
+				UploadedAt: item.UpdatedAt.Format(time.RFC3339),
+			}
+			orders = append(orders, o)
+		}
+		utils.WriteResponseAsJSON(w, orders, http.StatusOK)
+		log.Debug(context.Background(), "getting list of loaded orders successfully")
+	}
+}
+
 //func UpdateOrder(storage store.Connector, ac *provider.AccrualClient, orderNumber int, userID string) {
 //	order, err := ac.GetOrder(orderNumber)
 //	if err != nil {
@@ -229,5 +239,3 @@ func CreateOrder(storage store.Connector, ac *provider.AccrualClient) http.Handl
 //
 //		//verify auth
 //
-//	}
-//}

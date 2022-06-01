@@ -10,11 +10,12 @@ type User struct {
 }
 
 type Order struct {
-	ID        string    `json:"id"`
-	Number    string    `json:"number"`
-	Status    string    `json:"status"`
-	Accural   float64   `json:"accrual,omitempty"`
-	UpdatedAt time.Time `json:"updated_at" format:"RFC3339"`
+	ID          string    `json:"id"`
+	OrderNumber string    `json:"order_number"`
+	Accrual     float64   `json:"accrual,omitempty"`
+	UserID      string    `json:"user_id"`
+	Status      string    `json:"status"`
+	UpdatedAt   time.Time `json:"updated_at" format:"RFC3339"`
 }
 
 type ProviderOrder struct {
