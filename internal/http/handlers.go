@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	pgxv4 "github.com/jackc/pgx/v4"
@@ -114,7 +113,7 @@ func Login(storage store.Connector) http.Handler {
 }
 
 func getUser(ctx context.Context) (*dto.User, error) {
-	u, ok := ctx.Value("user").(*dto.User)
+	u, ok := ctx.Value(User).(*dto.User)
 	if !ok {
 		return nil, errors.New("failed to get user from context")
 	}
@@ -124,13 +123,13 @@ func getUser(ctx context.Context) (*dto.User, error) {
 
 func CreateOrder(storage store.Connector, ac *provider.AccrualClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := getUser(r.Context())
+		_, err := getUser(r.Context())
 		if err != nil {
 			msg := "failed to get user from context"
 			utils.WriteErrorAsJSON(w, msg, msg, err, http.StatusUnauthorized)
 		}
 
-		fmt.Println("!!! %s", user.Login)
+		//fmt.Println("!!! %s", user.Login)
 		//		orderNumberBin, err := io.ReadAll(r.Body)
 		//		defer r.Body.Close()
 		//		if err != nil {

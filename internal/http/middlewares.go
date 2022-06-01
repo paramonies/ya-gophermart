@@ -25,7 +25,7 @@ func Auth(storage store.Connector) func(next http.Handler) http.Handler {
 					utils.WriteErrorAsJSON(w, "user is unauthorized", "failed to authorize user", err, http.StatusUnauthorized)
 					return
 				}
-				newReq = r.WithContext(context.WithValue(r.Context(), "user", user))
+				newReq = r.WithContext(context.WithValue(r.Context(), User, user))
 			}
 
 			next.ServeHTTP(w, newReq)
