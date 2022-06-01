@@ -24,7 +24,7 @@ func WriteErrorAsJSON(w http.ResponseWriter, msgUser, msgLog string, err error, 
 	if e != nil {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 	}
-	_, err = w.Write(respJSON)
+	_, e = w.Write(respJSON)
 	if e != nil {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 	}
