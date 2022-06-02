@@ -115,7 +115,7 @@ func (r *AccrualRepo) UpdateAccrual(or dto.ProviderOrder) error {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
-	query := fmt.Sprintf("UPDATE accruals SET order_status = '%s', accrual = %d WHERE order_number = '%s'", or.Status, or.Accrual, or.Number)
+	query := fmt.Sprintf("UPDATE accruals SET order_status = '%s', accrual = %f WHERE order_number = '%s'", or.Status, or.Accrual, or.Number)
 
 	_, err := r.pool.Exec(ctx, query)
 	if err != nil {
