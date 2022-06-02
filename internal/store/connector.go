@@ -22,7 +22,8 @@ type AccrualRepoIf interface {
 	LoadOrder(orderNumber int, userID string) error
 	GetOrderByOrderNumber(orderNumber int) (*dto.Order, error)
 	GetOrderByUserID(id string) (*[]dto.Order, error)
-	UpdateOrder(order dto.ProviderOrder) error
+	GetPendingOrdersByUserID(id string) (*[]dto.Order, error)
+	UpdateAccrual(or dto.ProviderOrder) error
 	SelectOrders(userID string) ([]dto.Order, error)
 }
 

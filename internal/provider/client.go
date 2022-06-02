@@ -7,24 +7,27 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/internal/store/dto"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
 type AccrualClient struct {
-	URL    string
-	Client *http.Client
+	URL     string
+	Client  *http.Client
+	Storage store.Connector
 }
 
-func NewAccrualClient(address string) *AccrualClient {
+func NewAccrualClient(address string, storage store.Connector) *AccrualClient {
 	return &AccrualClient{
-		URL:    fmt.Sprintf("%s/api/orders", address),
-		Client: &http.Client{},
+		URL:     fmt.Sprintf("%s/api/orders", address),
+		Client:  &http.Client{},
+		Storage: storage,
 	}
 }
 
-func (pc *AccrualClient) GetOrder(orderNumber int) (*dto.ProviderOrder, error) {
-	url := fmt.Sprintf("%s/%d", pc.URL, orderNumber)
+func (ac *AccrualClient) getOrder(orderNumber string) (*dto.ProviderOrder, error) {
+	url := fmt.Sprintf("%s/%s", ac.URL, orderNumber)
 	log.Debug(context.Background(), "get order handler for provider", "address", url, "method", "GET")
 	var order dto.ProviderOrder
 
@@ -33,7 +36,7 @@ func (pc *AccrualClient) GetOrder(orderNumber int) (*dto.ProviderOrder, error) {
 		return nil, err
 	}
 
-	resp, err := pc.Client.Do(req)
+	resp, err := ac.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -56,4 +59,24 @@ func (pc *AccrualClient) GetOrder(orderNumber int) (*dto.ProviderOrder, error) {
 
 	log.Debug(context.Background(), "order from provider", "order", string(bodyBin))
 	return &order, nil
+}
+
+func (ac *AccrualClient) UpdateAccrual(orderNumber string) error {
+	order, err := ac.getOrder(orderNumber)
+	if err != nil {
+		return err
+	}
+
+	if order == nil {
+		log.Debug(context.Background(), "no information for order in accrual service provider", "orderNumber", orderNumber)
+		return nil
+	}
+
+	err = ac.Storage.Accruals().UpdateAccrual(*order)
+	if err != nil {
+		return err
+	}
+
+	log.Debug(context.Background(), "load accrual for order", "orderNumber", orderNumber, "Accrual", order.Accrual)
+	return nil
 }

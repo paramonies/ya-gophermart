@@ -2,12 +2,48 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/internal/utils"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
+
+func LoadAccruals(ac *provider.AccrualClient, storage store.Connector) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Info(context.Background(), "try to get accruals for orders")
+
+			user, err := getUser(r.Context())
+			if err != nil {
+				utils.WriteErrorAsJSON(w, "unauthorized", "failed to get user from context", err, http.StatusUnauthorized)
+				return
+			}
+
+			list, err := storage.Accruals().GetPendingOrdersByUserID(user.ID)
+			if len(*list) == 0 {
+				next.ServeHTTP(w, r)
+			}
+			if err != nil {
+				utils.WriteErrorAsJSON(w, "oops)", "failed to get pending orders for user from db", err, http.StatusInternalServerError)
+				return
+			}
+
+			go func() {
+				for _, or := range *list {
+					err := ac.UpdateAccrual(or.ID)
+					if err != nil {
+						log.Error(context.Background(), fmt.Sprintf("failed to update %s order for user %s", or.ID, user.Login), err)
+					}
+				}
+			}()
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
 
 func Auth(storage store.Connector) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

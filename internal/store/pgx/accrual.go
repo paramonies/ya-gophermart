@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -84,36 +83,43 @@ func (r *AccrualRepo) GetOrderByUserID(id string) (*[]dto.Order, error) {
 	return &orders, nil
 }
 
-func (r *AccrualRepo) UpdateOrder(order dto.ProviderOrder) error {
-	pos := 1
-	fields := make([]string, 0)
-	values := make([]interface{}, 0)
-
-	status, err := dto.OrderStatusToStore(order.Status)
-	if err != nil {
-		return nil
-	}
-
-	fields = append(fields, fmt.Sprintf("status=$%d", pos))
-	values = append(values, string(status))
-	pos++
-
-	fields = append(fields, fmt.Sprintf("accrual=$%d", pos))
-	values = append(values, order.Accrual)
-	pos++
-
-	values = append(values, order.Number)
-	query := fmt.Sprintf("UPDATE orders SET %s WHERE number=$%d", strings.Join(fields, ","), pos)
-
+func (r *AccrualRepo) GetPendingOrdersByUserID(id string) (*[]dto.Order, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
-	tag, err := r.pool.Exec(ctx, query, values...)
+	query := fmt.Sprintf("SELECT id, order_number, accrual, user_id, order_status, updated_at FROM accruals WHERE user_id ='%s' and order_status NOT IN ('PROCESSED', 'INVALID') ORDER BY updated_at ASC", id)
+	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
-		return fmt.Errorf("error updating order: %w", err)
+		return nil, err
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrOrdersNotFound
+	defer rows.Close()
+
+	var orders []dto.Order
+	for rows.Next() {
+		var o dto.Order
+		err := rows.Scan(&o.ID, &o.OrderNumber, &o.Accrual, &o.UserID, &o.Status, &o.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	return &orders, nil
+}
+
+func (r *AccrualRepo) UpdateAccrual(or dto.ProviderOrder) error {
+	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
+	defer cancel()
+
+	query := fmt.Sprintf("UPDATE accruals SET order_status = '%s', accrual = %d WHERE order_number = '%s'", or.Status, or.Accrual, or.Number)
+
+	_, err := r.pool.Exec(ctx, query)
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -83,7 +83,7 @@ func main() {
 	log.Info(context.Background(), "create connection to postgres DB")
 
 	//ac := provider.NewAccrualClient(cfg.ExtApp.AccrualSystemAddress)
-	ac := provider.NewAccrualClient(cfg.AccrualSystemAddress)
+	ac := provider.NewAccrualClient(cfg.AccrualSystemAddress, dbConn)
 	log.Info(context.Background(), "create accrual service client")
 
 	//addr := cfg.App.RunAddress
