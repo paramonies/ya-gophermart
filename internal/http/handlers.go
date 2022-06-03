@@ -192,13 +192,14 @@ func ListProcessedOrders(storage store.Connector) http.HandlerFunc {
 		}
 
 		list, err := storage.Accruals().GetOrderByUserID(user.ID)
-		if len(*list) == 0 {
-			utils.WriteMsgAsJSON(w, "there is no order", http.StatusNoContent)
+
+		if err != nil && !errors.Is(err, pgxv4.ErrNoRows) {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get orders from accrual table", err, http.StatusInternalServerError)
 			return
 		}
 
-		if err != nil {
-			utils.WriteErrorAsJSON(w, "oops)", "failed to get orders from accrual table", err, http.StatusInternalServerError)
+		if len(*list) == 0 {
+			utils.WriteMsgAsJSON(w, "there is no order", http.StatusNoContent)
 			return
 		}
 

@@ -33,7 +33,7 @@ func LoadAccruals(ac *provider.AccrualClient, storage store.Connector) func(next
 
 			go func() {
 				for _, or := range *list {
-					err := ac.UpdateAccrual(or.ID)
+					err := ac.UpdateAccrual(or.OrderNumber)
 					if err != nil {
 						log.Error(context.Background(), fmt.Sprintf("failed to update %s order for user %s", or.ID, user.Login), err)
 					}
