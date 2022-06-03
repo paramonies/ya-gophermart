@@ -7,7 +7,7 @@ import (
 type Connector interface {
 	Users() UserRepoIf
 	Accruals() AccrualRepoIf
-	Withdrawns() WithdrawnRepoIf
+	Orders() OrderRepoIf
 }
 
 type UserRepoIf interface {
@@ -20,13 +20,16 @@ type UserRepoIf interface {
 
 type AccrualRepoIf interface {
 	LoadOrder(orderNumber int, userID string) error
-	GetOrderByOrderNumber(orderNumber int) (*dto.Order, error)
-	GetOrderByUserID(id string) (*[]dto.Order, error)
-	GetPendingOrdersByUserID(id string) (*[]dto.Order, error)
+	GetOrderByOrderNumber(orderNumber int) (*dto.OrderAccrual, error)
+	GetOrderByUserID(id string) (*[]dto.OrderAccrual, error)
+	GetPendingOrdersByUserID(id string) (*[]dto.OrderAccrual, error)
 	UpdateAccrual(or dto.ProviderOrder) error
-	SelectOrders(userID string) ([]dto.Order, error)
+	SelectOrders(userID string) ([]dto.OrderAccrual, error)
+	GetOrdersAccrualForUser(userID string) (*float64, error)
 }
 
-type WithdrawnRepoIf interface {
-	GetUserWithdrawnSum(userID int) (*float64, error)
+type OrderRepoIf interface {
+	GetOrdersPriceForUser(userID string) (*float64, error)
+	Register(userID string, orderNumber string, price float64) error
+	GetOrdersByUserID(userID string) (*[]dto.Order, error)
 }

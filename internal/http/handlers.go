@@ -217,25 +217,125 @@ func ListProcessedOrders(storage store.Connector) http.HandlerFunc {
 	}
 }
 
-//func UpdateOrder(storage store.Connector, ac *provider.AccrualClient, orderNumber int, userID string) {
-//	order, err := ac.GetOrder(orderNumber)
-//	if err != nil {
-//		log.Error(context.Background(), "failed to get order from provider", err)
-//		return
-//	}
-//
-//	err = storage.Orders().UpdateOrder(*order)
-//	if err != nil {
-//		log.Error(context.Background(), "failed to update order in db", err)
-//		return
-//	}
-//
-//	log.Info(context.Background(), "order updated successfully", "orderNumber", orderNumber, "userID", userID)
-//}
-//
-//func GetBalance(storage store.Connector) http.HandlerFunc {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log.Debug(context.Background(), "get balance handler", "request URL", r.URL, "method", r.Method)
-//
-//		//verify auth
-//
+func GetBalance(storage store.Connector) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := getUser(r.Context())
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "unauthorized", "failed to get user from context", err, http.StatusUnauthorized)
+			return
+		}
+
+		totalAccrual, err := storage.Accruals().GetOrdersAccrualForUser(user.ID)
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get total accruals for all orders for user", err, http.StatusInternalServerError)
+			return
+		}
+
+		totalPrice, err := storage.Orders().GetOrdersPriceForUser(user.ID)
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get total prices for all orders for user", err, http.StatusInternalServerError)
+			return
+		}
+
+		res := Balance{
+			Current:   *totalAccrual - *totalPrice,
+			Withdrawn: *totalPrice,
+		}
+
+		utils.WriteResponseAsJSON(w, res, http.StatusOK)
+		log.Debug(context.Background(), "getting balance for user successfully")
+	}
+}
+
+func PayOrder(storage store.Connector) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := getUser(r.Context())
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "unauthorized", "failed to get user from context", err, http.StatusUnauthorized)
+			return
+		}
+
+		var req PayOrderRequest
+		err = json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "invalid format", "failed to unmarshal request body", err, http.StatusBadRequest)
+			return
+		}
+
+		orderNumber, err := strconv.Atoi(string(req.OrderNumber))
+		if err != nil {
+			msg := "order number is not integer"
+			utils.WriteErrorAsJSON(w, msg, msg, err, http.StatusBadRequest)
+			return
+		}
+		log.Debug(context.Background(), "oder info", "orderNumber", orderNumber)
+
+		if !utils.Valid(orderNumber) {
+			msg := "order number is invalid according to Luhn"
+			utils.WriteErrorAsJSON(w, msg, msg, errors.New(msg), http.StatusUnprocessableEntity)
+			return
+		}
+
+		totalAccrual, err := storage.Accruals().GetOrdersAccrualForUser(user.ID)
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get total accruals for all orders for user", err, http.StatusInternalServerError)
+			return
+		}
+
+		totalPrice, err := storage.Orders().GetOrdersPriceForUser(user.ID)
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get total prices for all orders for user", err, http.StatusInternalServerError)
+			return
+		}
+
+		balance := *totalAccrual - *totalPrice
+		if balance <= 0 {
+			utils.WriteErrorAsJSON(w, "not enought money on your account", "negative balance for user", err, http.StatusPaymentRequired)
+			return
+		}
+
+		err = storage.Orders().Register(user.ID, req.OrderNumber, float64(req.Price))
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "failed to register order, contact the administrator", "failed to register order", err, http.StatusInternalServerError)
+			return
+		}
+
+		utils.WriteMsgAsJSON(w, "order registered", http.StatusOK)
+		log.Debug(context.Background(), "getting balance for user successfully")
+	}
+}
+
+func GetOrders(storage store.Connector) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := getUser(r.Context())
+		if err != nil {
+			utils.WriteErrorAsJSON(w, "unauthorized", "failed to get user from context", err, http.StatusUnauthorized)
+			return
+		}
+
+		list, err := storage.Orders().GetOrdersByUserID(user.ID)
+		if err != nil && !errors.Is(err, pgxv4.ErrNoRows) {
+			utils.WriteErrorAsJSON(w, "oops)", "failed to get orders", err, http.StatusUnauthorized)
+			return
+		}
+
+		if len(*list) == 0 {
+			utils.WriteMsgAsJSON(w, "there is no order", http.StatusNoContent)
+			return
+		}
+
+		orders := make([]OrderResponse, 0)
+		for _, item := range *list {
+			o := OrderResponse{
+				OrderNumber: item.OrderNumber,
+				Price:       item.Price,
+				UpdatedAt:   item.UpdatedAt.Format(time.RFC3339),
+			}
+
+			orders = append(orders, o)
+		}
+
+		utils.WriteResponseAsJSON(w, orders, http.StatusOK)
+		log.Debug(context.Background(), "getting list of registered orders successfully")
+	}
+}

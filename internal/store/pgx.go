@@ -9,16 +9,16 @@ import (
 )
 
 type pgxConnector struct {
-	UserRepo      *pgx.UserRepo
-	AccrualRepo   *pgx.AccrualRepo
-	WithdrawnRepo *pgx.WithdrawnRepo
+	UserRepo    *pgx.UserRepo
+	AccrualRepo *pgx.AccrualRepo
+	OrderRepo   *pgx.OrderRepo
 }
 
 func NewPgxConnector(p *pgxpool.Pool, queryTimeout time.Duration) Connector {
 	return &pgxConnector{
-		UserRepo:      pgx.NewUserRepo(p, queryTimeout),
-		AccrualRepo:   pgx.NewAccrualRepo(p, queryTimeout),
-		WithdrawnRepo: pgx.NewUWithdrawnRepo(p, queryTimeout),
+		UserRepo:    pgx.NewUserRepo(p, queryTimeout),
+		AccrualRepo: pgx.NewAccrualRepo(p, queryTimeout),
+		OrderRepo:   pgx.NewOrderRepo(p, queryTimeout),
 	}
 }
 
@@ -30,6 +30,6 @@ func (c *pgxConnector) Accruals() AccrualRepoIf {
 	return c.AccrualRepo
 }
 
-func (c *pgxConnector) Withdrawns() WithdrawnRepoIf {
-	return c.WithdrawnRepo
+func (c *pgxConnector) Orders() OrderRepoIf {
+	return c.OrderRepo
 }

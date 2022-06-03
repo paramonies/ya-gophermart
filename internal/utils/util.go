@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/paramonies/ya-gophermart/pkg/log"
@@ -42,10 +41,12 @@ func WriteMsgAsJSON(w http.ResponseWriter, msg string, code int) {
 	respJSON, err := json.Marshal(respMsg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	_, err = w.Write(respJSON)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -55,22 +56,11 @@ func WriteResponseAsJSON(w http.ResponseWriter, data interface{}, code int) {
 	respJSON, err := json.Marshal(data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	_, err = w.Write(respJSON)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func VerifyToken(w http.ResponseWriter, r *http.Request, hash string) {
-	_, err := r.Cookie("token")
-	if errors.Is(err, http.ErrNoCookie) {
-		cookie := &http.Cookie{
-			Name:   "token",
-			Value:  hash,
-			Secure: false,
-		}
-		http.SetCookie(w, cookie)
-		log.Debug(context.Background(), "set cookie for user")
+		return
 	}
 }

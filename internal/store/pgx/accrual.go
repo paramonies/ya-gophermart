@@ -12,9 +12,7 @@ import (
 )
 
 var (
-	ErrAlreadyCreatedByUser      = errors.New("order has already been created by user")
-	ErrAlreadyCreatedByOtherUser = errors.New("order has already been created by other user")
-	ErrOrdersNotFound            = errors.New("orders not found")
+	ErrOrdersNotFound = errors.New("orders not found")
 )
 
 type AccrualRepo struct {
@@ -42,11 +40,11 @@ func (r *AccrualRepo) LoadOrder(orderNumber int, userID string) error {
 	return nil
 }
 
-func (r *AccrualRepo) GetOrderByOrderNumber(orderNumber int) (*dto.Order, error) {
+func (r *AccrualRepo) GetOrderByOrderNumber(orderNumber int) (*dto.OrderAccrual, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
-	var o dto.Order
+	var o dto.OrderAccrual
 	query := fmt.Sprintf("SELECT id, order_number, accrual, user_id, order_status, updated_at FROM accruals WHERE order_number='%d'", orderNumber)
 	row := r.pool.QueryRow(ctx, query)
 	if err := row.Scan(&o.ID, &o.OrderNumber, &o.Accrual, &o.UserID, &o.Status, &o.UpdatedAt); err != nil {
@@ -55,7 +53,7 @@ func (r *AccrualRepo) GetOrderByOrderNumber(orderNumber int) (*dto.Order, error)
 	return &o, nil
 }
 
-func (r *AccrualRepo) GetOrderByUserID(id string) (*[]dto.Order, error) {
+func (r *AccrualRepo) GetOrderByUserID(id string) (*[]dto.OrderAccrual, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
@@ -66,9 +64,9 @@ func (r *AccrualRepo) GetOrderByUserID(id string) (*[]dto.Order, error) {
 	}
 	defer rows.Close()
 
-	var orders []dto.Order
+	var orders []dto.OrderAccrual
 	for rows.Next() {
-		var o dto.Order
+		var o dto.OrderAccrual
 		err := rows.Scan(&o.ID, &o.OrderNumber, &o.Accrual, &o.UserID, &o.Status, &o.UpdatedAt)
 		if err != nil {
 			return nil, err
@@ -83,7 +81,7 @@ func (r *AccrualRepo) GetOrderByUserID(id string) (*[]dto.Order, error) {
 	return &orders, nil
 }
 
-func (r *AccrualRepo) GetPendingOrdersByUserID(id string) (*[]dto.Order, error) {
+func (r *AccrualRepo) GetPendingOrdersByUserID(id string) (*[]dto.OrderAccrual, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
@@ -94,9 +92,9 @@ func (r *AccrualRepo) GetPendingOrdersByUserID(id string) (*[]dto.Order, error) 
 	}
 	defer rows.Close()
 
-	var orders []dto.Order
+	var orders []dto.OrderAccrual
 	for rows.Next() {
-		var o dto.Order
+		var o dto.OrderAccrual
 		err := rows.Scan(&o.ID, &o.OrderNumber, &o.Accrual, &o.UserID, &o.Status, &o.UpdatedAt)
 		if err != nil {
 			return nil, err
@@ -125,7 +123,7 @@ func (r *AccrualRepo) UpdateAccrual(or dto.ProviderOrder) error {
 	return nil
 }
 
-func (r *AccrualRepo) SelectOrders(userID string) ([]dto.Order, error) {
+func (r *AccrualRepo) SelectOrders(userID string) ([]dto.OrderAccrual, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
@@ -142,9 +140,9 @@ WHERE users.id = $1
 	}
 	defer rows.Close()
 
-	var orders []dto.Order
+	var orders []dto.OrderAccrual
 	for rows.Next() {
-		var order dto.Order
+		var order dto.OrderAccrual
 		err := rows.Scan(&order.ID, &order.OrderNumber, &order.Accrual, &order.Status, &order.UpdatedAt)
 		if err != nil {
 			return nil, err
@@ -162,4 +160,15 @@ WHERE users.id = $1
 	}
 
 	return orders, nil
+}
+
+func (r AccrualRepo) GetOrdersAccrualForUser(userID string) (*float64, error) {
+	var totalAccrual float64
+	query := fmt.Sprintf("SELECT COALESCE(SUM(accrual),0) FROM accruals WHERE user_id = '%s' AND order_status = 'PROCESSED'", userID)
+	err := r.pool.QueryRow(context.Background(), query).Scan(&totalAccrual)
+	if err != nil {
+		return nil, err
+	}
+
+	return &totalAccrual, nil
 }

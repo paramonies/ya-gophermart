@@ -9,7 +9,7 @@ type User struct {
 	Token        string
 }
 
-type Order struct {
+type OrderAccrual struct {
 	ID          string    `json:"id"`
 	OrderNumber string    `json:"order_number"`
 	Accrual     float64   `json:"accrual,omitempty"`
@@ -22,4 +22,12 @@ type ProviderOrder struct {
 	Number  string  `json:"order"`
 	Status  string  `json:"status"`
 	Accrual float64 `json:"accrual"`
+}
+
+type Order struct {
+	ID          string    `json:"id"`
+	OrderNumber string    `json:"order_number"`
+	Price       float64   `json:"price,omitempty"`
+	UserID      string    `json:"user_id"`
+	UpdatedAt   time.Time `json:"updated_at" format:"RFC3339"`
 }
