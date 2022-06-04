@@ -289,7 +289,7 @@ func PayOrder(storage store.Connector) http.HandlerFunc {
 		}
 
 		balance := *totalAccrual - *totalPrice
-		if balance <= 0 {
+		if balance < req.Price {
 			utils.WriteErrorAsJSON(w, "not enought money on your account", "negative balance for user", err, http.StatusPaymentRequired)
 			return
 		}
@@ -297,7 +297,7 @@ func PayOrder(storage store.Connector) http.HandlerFunc {
 		err = storage.Orders().Register(user.ID, req.OrderNumber, float64(req.Price))
 		if err != nil {
 			if errors.Is(err, pgx.ErrConstraintViolationOrder) {
-				utils.WriteMsgAsJSON(w, "order already registered", http.StatusConflict)
+				utils.WriteMsgAsJSON(w, "order already registered", http.StatusOK)
 				return
 			}
 			utils.WriteErrorAsJSON(w, "failed to register order, contact the administrator", "failed to register order", err, http.StatusInternalServerError)

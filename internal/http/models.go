@@ -24,8 +24,8 @@ type Balance struct {
 }
 
 type PayOrderRequest struct {
-	OrderNumber string `json:"order"`
-	Price       int    `json:"sum"`
+	OrderNumber string  `json:"order"`
+	Price       float64 `json:"sum"`
 }
 
 type OrderResponse struct {
