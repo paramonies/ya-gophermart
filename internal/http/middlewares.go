@@ -24,8 +24,7 @@ func LoadAccruals(ac *provider.AccrualClient, storage store.Connector) func(next
 
 			list, err := storage.Accruals().GetPendingOrdersByUserID(user.ID)
 			if err != nil {
-				utils.WriteErrorAsJSON(w, "oops)", "failed to get pending orders for user from db", err, http.StatusInternalServerError)
-				return
+				log.Info(context.Background(), "failed to get pending orders for user from db")
 			}
 
 			if len(*list) != 0 && err == nil {

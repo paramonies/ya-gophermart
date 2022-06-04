@@ -11,7 +11,6 @@ import (
 
 	pgxv4 "github.com/jackc/pgx/v4"
 
-	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/internal/store/dto"
 	"github.com/paramonies/ya-gophermart/internal/store/pgx"
@@ -124,7 +123,7 @@ func getUser(ctx context.Context) (*dto.User, error) {
 	return u, nil
 }
 
-func LoadOrder(storage store.Connector, ac *provider.AccrualClient) http.HandlerFunc {
+func LoadOrder(storage store.Connector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := getUser(r.Context())
 		if err != nil {

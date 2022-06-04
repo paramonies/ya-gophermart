@@ -18,7 +18,7 @@ func NewRouter(storage store.Connector, ac *provider.AccrualClient) *chi.Mux {
 		r.Use(Auth(storage))
 		r.Use(LoadAccruals(ac, storage))
 
-		r.Post("/orders", LoadOrder(storage, ac))
+		r.Post("/orders", LoadOrder(storage))
 		r.Get("/orders", ListProcessedOrders(storage))
 		r.Route("/balance", func(r chi.Router) {
 			r.Get("/", GetBalance(storage))
