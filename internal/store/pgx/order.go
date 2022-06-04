@@ -2,9 +2,12 @@ package pgx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/paramonies/ya-gophermart/internal/store/dto"
@@ -34,9 +37,15 @@ func (r OrderRepo) GetOrdersPriceForUser(userID string) (*float64, error) {
 }
 
 func (r OrderRepo) Register(userID string, orderNumber string, price float64) error {
-	query := fmt.Sprintf("INSERT INTO orders (user_id, order_number, price) VALUES (%s, %s, %f);", userID, orderNumber, price)
+	query := fmt.Sprintf("INSERT INTO orders (user_id, order_number, price) VALUES ('%s', '%s', %f);", userID, orderNumber, price)
 	_, err := r.pool.Exec(context.Background(), query)
 	if err != nil {
+		var pgerr *pgconn.PgError
+		if errors.As(err, &pgerr) {
+			if pgerrcode.IsIntegrityConstraintViolation(pgerr.SQLState()) {
+				return ErrConstraintViolationOrder
+			}
+		}
 		return err
 	}
 

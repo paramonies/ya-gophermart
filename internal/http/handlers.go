@@ -86,7 +86,7 @@ func Login(storage store.Connector) http.Handler {
 
 		user, err := storage.Users().GetByName(req.Login)
 		if err != nil {
-			if errors.Is(err, pgx.ErrConstraintViolation) {
+			if errors.Is(err, pgx.ErrConstraintViolationUser) {
 				msg = err.Error()
 			}
 			utils.WriteErrorAsJSON(w, msg, "failed to get user from db", err, http.StatusConflict)
@@ -297,6 +297,10 @@ func PayOrder(storage store.Connector) http.HandlerFunc {
 
 		err = storage.Orders().Register(user.ID, req.OrderNumber, float64(req.Price))
 		if err != nil {
+			if errors.Is(err, pgx.ErrConstraintViolationOrder) {
+				utils.WriteMsgAsJSON(w, "order already registered", http.StatusConflict)
+				return
+			}
 			utils.WriteErrorAsJSON(w, "failed to register order, contact the administrator", "failed to register order", err, http.StatusInternalServerError)
 			return
 		}

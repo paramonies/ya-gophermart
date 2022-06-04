@@ -12,11 +12,6 @@ import (
 	"github.com/paramonies/ya-gophermart/internal/store/dto"
 )
 
-var (
-	ErrConstraintViolation = errors.New("login has already exist")
-	ErrUserNotFound        = errors.New("user not found")
-)
-
 type UserRepo struct {
 	pool         *pgxpool.Pool
 	queryTimeout time.Duration

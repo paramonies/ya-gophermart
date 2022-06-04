@@ -35,7 +35,6 @@ func WriteMsgAsJSON(w http.ResponseWriter, msg string, code int) {
 	}{
 		Msg: msg,
 	}
-
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	respJSON, err := json.Marshal(respMsg)

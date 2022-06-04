@@ -23,22 +23,21 @@ func LoadAccruals(ac *provider.AccrualClient, storage store.Connector) func(next
 			}
 
 			list, err := storage.Accruals().GetPendingOrdersByUserID(user.ID)
-			if len(*list) == 0 {
-				next.ServeHTTP(w, r)
-			}
 			if err != nil {
 				utils.WriteErrorAsJSON(w, "oops)", "failed to get pending orders for user from db", err, http.StatusInternalServerError)
 				return
 			}
 
-			go func() {
-				for _, or := range *list {
-					err := ac.UpdateAccrual(or.OrderNumber)
-					if err != nil {
-						log.Error(context.Background(), fmt.Sprintf("failed to update %s order for user %s", or.ID, user.Login), err)
+			if len(*list) != 0 && err == nil {
+				go func() {
+					for _, or := range *list {
+						err := ac.UpdateAccrual(or.OrderNumber)
+						if err != nil {
+							log.Error(context.Background(), fmt.Sprintf("failed to update %s order for user %s", or.ID, user.Login), err)
+						}
 					}
-				}
-			}()
+				}()
+			}
 
 			next.ServeHTTP(w, r)
 		})
