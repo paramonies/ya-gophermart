@@ -2,17 +2,12 @@ package pgx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/paramonies/ya-gophermart/internal/store/dto"
-)
-
-var (
-	ErrOrdersNotFound = errors.New("orders not found")
 )
 
 type AccrualRepo struct {

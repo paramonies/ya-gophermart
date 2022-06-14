@@ -68,7 +68,7 @@ func (ac *AccrualClient) UpdateAccrual(orderNumber string) error {
 	}
 
 	if order == nil {
-		log.Debug(context.Background(), "no information for order in accrual service provider", "orderNumber", orderNumber)
+		log.Debug(context.Background(), "no information for order in accrual server provider", "orderNumber", orderNumber)
 		return nil
 	}
 

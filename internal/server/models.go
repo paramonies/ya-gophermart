@@ -1,4 +1,4 @@
-package http
+package server
 
 type CtxUser string
 

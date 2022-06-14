@@ -14,9 +14,11 @@ import (
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 
-	"github.com/paramonies/ya-gophermart/internal/conf"
-	inhttp "github.com/paramonies/ya-gophermart/internal/http"
+	"github.com/paramonies/ya-gophermart/internal/app"
+	"github.com/paramonies/ya-gophermart/internal/config"
+	"github.com/paramonies/ya-gophermart/internal/managers"
 	"github.com/paramonies/ya-gophermart/internal/provider"
+	"github.com/paramonies/ya-gophermart/internal/server"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
@@ -27,8 +29,10 @@ const (
 
 var (
 	dbConnectTimeout = 1 * time.Second
-	MigDirName       = "migrations"
+	migDirName       = "migrations"
 )
+
+var appManagers managers.AppManagers
 
 func main() {
 	log.Init(os.Stdout, &log.Config{
@@ -36,10 +40,9 @@ func main() {
 		WithStack:  true,
 	})
 
-	log.Info(context.Background(), "start service")
+	log.Info(context.Background(), "start server")
 
-	var cfg conf.Config
-	err := cfg.Init()
+	cfg, err := config.Init()
 	if err != nil {
 		log.Error(context.Background(), "failed to load config", err)
 		os.Exit(errorExitCode)
@@ -49,50 +52,34 @@ func main() {
 		"database_uri", cfg.DatabaseURI, "query_timeout",
 		"accrual_system_address", cfg.AccrualSystemAddress)
 
-	//config.InitConfig()
-	//cfg, err := config.LoadConfig()
-	//if err != nil {
-	//	log.Error(context.Background(), "failed to load config", err)
-	//	os.Exit(errorExitCode)
-	//}
-	//
-	//err = cfg.Validate()
-	//if err != nil {
-	//	log.Error(context.Background(), "failed to validate config", err)
-	//	os.Exit(errorExitCode)
-	//}
-	//
-	//log.Debug(context.Background(), "config params", "run_address", cfg.App.RunAddress,
-	//	"log_level", cfg.App.LogLevel, "database_uri", cfg.Database.DatabaseURI, "query_timeout",
-	//	cfg.Database.QueryTimeout, "accrual_system_address", cfg.ExtApp.AccrualSystemAddress)
-
-	//logLevel := convertLogLevel(cfg.App.LogLevel)
-
 	logLevel := convertLogLevel("debug")
 	log.SetGlobalLevel(logLevel)
 	log.Info(context.Background(), "updated global logging level", "newLevel", logLevel)
 
-	//dbPool, err := initDatabaseConnection(cfg.Database)
 	dbPool, err := initDatabaseConnection(cfg.DatabaseURI)
 	if err != nil {
 		log.Error(context.Background(), "failed to init database connection", err)
 		os.Exit(errorExitCode)
 	}
-	//dbConn := store.NewPgxConnector(dbPool, cfg.Database.QueryTimeout)
 	dbConn := store.NewPgxConnector(dbPool, dbConnectTimeout)
 	log.Info(context.Background(), "create connection to postgres DB")
 
-	//ac := provider.NewAccrualClient(cfg.ExtApp.AccrualSystemAddress)
 	ac := provider.NewAccrualClient(cfg.AccrualSystemAddress, dbConn)
-	log.Info(context.Background(), "create accrual service client")
+	log.Info(context.Background(), "create accrual server client")
 
-	//addr := cfg.App.RunAddress
 	addr := cfg.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
 
+	//=================
+	appManagers := app.NewAppManagers(dbConn)
+	clusterHandler := server.NewUserHandler(appManagers.UserManager())
+	orderHandler := server.NewOrderHandler(appManagers.OrderManager())
+	accrualHandler := server.NewAccrualHandler(appManagers.AccrualManager())
+	//=================
+
 	var srv = http.Server{
 		Addr:    addr,
-		Handler: inhttp.NewRouter(dbConn, ac),
+		Handler: server.NewRouter(dbConn, ac, clusterHandler, orderHandler, accrualHandler),
 	}
 	done := make(chan struct{})
 	go func() {
@@ -133,7 +120,6 @@ func convertLogLevel(lvl string) log.Level {
 	return parsed
 }
 
-//func initDatabaseConnection(cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
 func initDatabaseConnection(databaseURI string) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbConnectTimeout)
 	defer cancel()
@@ -148,7 +134,7 @@ func initDatabaseConnection(databaseURI string) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	MigDirPath := fmt.Sprintf("%s/%s", rootDir, MigDirName)
+	MigDirPath := fmt.Sprintf("%s/%s", rootDir, migDirName)
 	migrations := &migrate.FileMigrationSource{
 		Dir: MigDirPath,
 	}

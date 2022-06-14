@@ -1,4 +1,4 @@
-package http
+package server
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
-func LoadAccruals(ac *provider.AccrualClient, storage store.Connector) func(next http.Handler) http.Handler {
+func LoadAccrualsMiddleware(ac *provider.AccrualClient, storage store.Connector) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			log.Info(context.Background(), "try to get accruals for orders")
@@ -43,7 +43,7 @@ func LoadAccruals(ac *provider.AccrualClient, storage store.Connector) func(next
 	}
 }
 
-func Auth(storage store.Connector) func(next http.Handler) http.Handler {
+func AuthMiddleware(storage store.Connector) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			newReq := r
@@ -67,7 +67,7 @@ func Auth(storage store.Connector) func(next http.Handler) http.Handler {
 	}
 }
 
-func LogRequestInfo(next http.Handler) http.Handler {
+func LogRequestInfoMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Debug(context.Background(), "=======", "request URL", r.URL, "method", r.Method)
 		next.ServeHTTP(w, r)
