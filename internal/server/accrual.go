@@ -88,7 +88,7 @@ func (h *AccrualHandler) GetOrders() http.HandlerFunc {
 			return
 		}
 
-		if err != nil && len(*resp.Orders) == 0 {
+		if len(*resp.Orders) == 0 {
 			utils.WriteMsgAsJSON(w, resp.MsgUser, resp.StatusCode)
 			return
 		}
