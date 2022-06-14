@@ -70,16 +70,11 @@ func main() {
 	addr := cfg.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
 
-	//=================
-	appManagers := app.NewAppManagers(dbConn)
-	clusterHandler := server.NewUserHandler(appManagers.UserManager())
-	orderHandler := server.NewOrderHandler(appManagers.OrderManager())
-	accrualHandler := server.NewAccrualHandler(appManagers.AccrualManager())
-	//=================
+	handlers := initHandlers(dbConn)
 
 	var srv = http.Server{
 		Addr:    addr,
-		Handler: server.NewRouter(dbConn, ac, clusterHandler, orderHandler, accrualHandler),
+		Handler: server.NewRouter(dbConn, ac, handlers),
 	}
 	done := make(chan struct{})
 	go func() {
@@ -152,4 +147,16 @@ func initDatabaseConnection(databaseURI string) (*pgxpool.Pool, error) {
 	}
 
 	return pool, nil
+}
+
+func initHandlers(storage store.Connector) *server.Handlers {
+	appManagers := app.NewAppManagers(storage)
+	userHandler := server.NewUserHandler(appManagers.UserManager())
+	orderHandler := server.NewOrderHandler(appManagers.OrderManager())
+	accrualHandler := server.NewAccrualHandler(appManagers.AccrualManager())
+	return &server.Handlers{
+		UserHandler:    userHandler,
+		OrderHandler:   orderHandler,
+		AccrualHandler: accrualHandler,
+	}
 }
