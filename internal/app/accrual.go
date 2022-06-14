@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	pgxv4 "github.com/jackc/pgx/v4"
@@ -61,7 +62,7 @@ func (m *DefAccrualManager) PayOrder(req *dto.PayOrderRequest) (*dto.PayOrderRes
 		}, errors.New(msg)
 	}
 
-	err = m.storage.Orders().Register(req.UserID, string(req.OrderNumber), float64(req.Price))
+	err = m.storage.Orders().Register(req.UserID, fmt.Sprintf("%s", req.OrderNumber), float64(req.Price))
 	if err != nil {
 		if errors.Is(err, pgx.ErrConstraintViolationOrder) {
 			msg := "order already registered"
