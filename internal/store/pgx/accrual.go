@@ -104,6 +104,34 @@ func (r *AccrualRepo) GetPendingOrdersByUserID(id string) (*[]dto.OrderAccrual, 
 	return &orders, nil
 }
 
+func (r *AccrualRepo) GetPendingOrders() (*[]dto.OrderAccrual, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
+	defer cancel()
+
+	query := "SELECT id, order_number, accrual, user_id, order_status, updated_at FROM accruals' and order_status NOT IN ('PROCESSED', 'INVALID') ORDER BY updated_at ASC"
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []dto.OrderAccrual
+	for rows.Next() {
+		var o dto.OrderAccrual
+		err := rows.Scan(&o.ID, &o.OrderNumber, &o.Accrual, &o.UserID, &o.Status, &o.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	return &orders, nil
+}
+
 func (r *AccrualRepo) UpdateAccrual(or dto.ProviderOrder) error {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()

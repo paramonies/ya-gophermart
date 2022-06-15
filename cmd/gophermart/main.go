@@ -77,6 +77,21 @@ func main() {
 		Handler: server.NewRouter(dbConn, ac, handlers),
 	}
 	done := make(chan struct{})
+
+	//==================================================
+	ticker := time.NewTicker(2 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case t := <-ticker.C:
+				fmt.Println("Tick at", t)
+				jobLoadAccruals(ac, dbConn)
+			}
+		}
+	}()
+	//==================================================
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -158,5 +173,25 @@ func initHandlers(storage store.Connector) *server.Handlers {
 		UserHandler:    userHandler,
 		OrderHandler:   orderHandler,
 		AccrualHandler: accrualHandler,
+	}
+}
+
+func jobLoadAccruals(ac *provider.AccrualClient, storage store.Connector) {
+	log.Info(context.Background(), "try to get accruals for orders")
+
+	list, err := storage.Accruals().GetPendingOrders()
+	if err != nil {
+		log.Info(context.Background(), "failed to get pending orders")
+	}
+
+	if list != nil && len(*list) != 0 && err == nil {
+		go func() {
+			for _, or := range *list {
+				err := ac.UpdateAccrual(or.OrderNumber)
+				if err != nil {
+					log.Error(context.Background(), fmt.Sprintf("failed to update %s order", or.ID), err)
+				}
+			}
+		}()
 	}
 }
