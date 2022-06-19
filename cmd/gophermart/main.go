@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/paramonies/ya-gophermart/internal/job"
 	"net/http"
 	"os"
 	"os/signal"
@@ -79,18 +80,21 @@ func main() {
 	done := make(chan struct{})
 
 	//==================================================
-	ticker := time.NewTicker(2 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			case t := <-ticker.C:
-				fmt.Println("Tick at", t)
-				jobLoadAccruals(ac, dbConn)
-			}
-		}
-	}()
+	job := job.InitJob(ac, dbConn, done)
+	job.Run()
+
+	//ticker := time.NewTicker(2 * time.Second)
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-done:
+	//			return
+	//		case t := <-ticker.C:
+	//			fmt.Println("Tick at", t)
+	//			jobLoadAccruals(ac, dbConn)
+	//		}
+	//	}
+	//}()
 	//==================================================
 	go func() {
 		sigCh := make(chan os.Signal, 1)
