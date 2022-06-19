@@ -11,7 +11,7 @@ services:
       - ./build/db/scripts:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: 123456
-      POSTGRES_DB: gophermart
+      POSTGRES_DB: ya-gophermart
 
 networks:
   kind:

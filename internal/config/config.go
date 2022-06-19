@@ -1,102 +1,30 @@
 package config
 
 import (
-	"fmt"
-	"strings"
-	"sync"
-	"time"
+	"flag"
 
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-)
-
-var configPath string
-
-const (
-	defaultServerAPIAddr = ":8090"
-	defaultLoggingLevel  = "debug"
-
-	defaultDatabaseURI          = "postgresql://postgres:123456@localhost/ya-gophermart"
-	defaultDatabaseQueryTimeout = 1 * time.Second
-
-	defaultAccrualSystemAddress = ":9000"
+	"github.com/caarlos0/env/v6"
 )
 
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	Database DatabaseConfig `mapstructure:"db"`
-	ExtApp   ExtAppConfig   `mapstructure:"ext_app"`
+	RunAddress           string `env:"RUN_ADDRESS" envDefault:"127.0.0.1:8081"`
+	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"server://127.0.0.1:8080"`
+	//DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgres://postgres:123456@localhost:5432/ya-gophermart?sslmode=disable"`
+	DatabaseURI string `env:"DATABASE_URI"`
 }
 
-func (cfg *Config) Validate() error {
-	err := cfg.App.validate()
+func Init() (*Config, error) {
+	var cfg Config
+	err := env.Parse(&cfg)
 	if err != nil {
-		return fmt.Errorf("bad app configuration: %s", err)
+		return nil, err
 	}
 
-	return nil
-}
+	flag.StringVar(&cfg.RunAddress, "a", cfg.RunAddress, "api server host and port")
+	flag.StringVar(&cfg.AccrualSystemAddress, "r", cfg.AccrualSystemAddress, "address of external accrual system")
+	flag.StringVar(&cfg.DatabaseURI, "d", cfg.DatabaseURI, "path to DB-file on disk")
 
-type AppConfig struct {
-	RunAddress string `mapstructure:"run_address"`
-	LogLevel   string `mapstructure:"log_level"`
-}
+	flag.Parse()
 
-type DatabaseConfig struct {
-	DatabaseURI  string        `mapstructure:"database_uri"`
-	QueryTimeout time.Duration `mapstructure:"query_timeout"`
-}
-
-type ExtAppConfig struct {
-	AccrualSystemAddress string `mapstructure:"accrual_system_address"`
-}
-
-var once = new(sync.Once)
-
-func InitConfig() {
-	once.Do(initViper)
-}
-
-func initViper() {
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// Bind command line arguments.
-	pflag.StringVar(&configPath, "config", "", "the configuration file path")
-
-	pflag.String("a", defaultServerAPIAddr, "address of the server API to listen (env: RUN_ADDRESS)")
-	pflag.String("log-level", defaultLoggingLevel, "the application log level: debug, info, warn, error (env: APP_LOG_LEVEL)")
-
-	pflag.String("d", defaultDatabaseURI, "the database connection URL (env: DATABASE_URI)")
-	pflag.Duration("db-query-timeout", defaultDatabaseQueryTimeout, "the database query timeout (env: DB_QUERY_TIMEOUT)")
-
-	pflag.String("r", defaultAccrualSystemAddress, "address of the external accrual system (env: ACCRUAL_SYSTEM_ADDRESS)")
-
-	pflag.Parse()
-
-	_ = viper.BindPFlag("app.run_address", pflag.Lookup("a"))
-	_ = viper.BindPFlag("app.log_level", pflag.Lookup("log-level"))
-
-	_ = viper.BindPFlag("db.database_uri", pflag.Lookup("d"))
-	_ = viper.BindPFlag("db.query_timeout", pflag.Lookup("db-query-timeout"))
-
-	_ = viper.BindPFlag("ext_app.accrual_system_address", pflag.Lookup("r"))
-}
-
-func LoadConfig() (*Config, error) {
-	if configPath != "" {
-		viper.SetConfigFile(configPath)
-		err := viper.ReadInConfig()
-		if err != nil {
-			return nil, fmt.Errorf("error reading config file: %s", err)
-		}
-	}
-
-	var config Config
-	err := viper.Unmarshal(&config)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling config: %s", err)
-	}
-
-	return &config, nil
+	return &cfg, nil
 }
