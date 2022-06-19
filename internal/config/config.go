@@ -9,8 +9,8 @@ import (
 type Config struct {
 	RunAddress           string `env:"RUN_ADDRESS" envDefault:"127.0.0.1:8081"`
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"server://127.0.0.1:8080"`
-	DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgres://postgres:123456@localhost:5432/ya-gophermart?sslmode=disable"`
-	//DatabaseURI string `env:"DATABASE_URI"`
+	//DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgres://postgres:123456@localhost:5432/ya-gophermart?sslmode=disable"`
+	DatabaseURI string `env:"DATABASE_URI"`
 }
 
 func Init() (*Config, error) {

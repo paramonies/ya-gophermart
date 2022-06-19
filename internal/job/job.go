@@ -3,10 +3,11 @@ package job
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/paramonies/ya-gophermart/internal/provider"
 	"github.com/paramonies/ya-gophermart/internal/store"
 	"github.com/paramonies/ya-gophermart/pkg/log"
-	"time"
 )
 
 const jobRunInterval = 3 * time.Second
