@@ -108,7 +108,7 @@ func (r *AccrualRepo) GetPendingOrders() (*[]dto.OrderAccrual, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
-	query := "SELECT id, order_number, accrual, user_id, order_status, updated_at FROM accruals' WHERE order_status NOT IN ('PROCESSED', 'INVALID') ORDER BY updated_at ASC"
+	query := "SELECT id, order_number, accrual, user_id, order_status, updated_at FROM accruals WHERE order_status NOT IN ('PROCESSED', 'INVALID') ORDER BY updated_at ASC"
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err

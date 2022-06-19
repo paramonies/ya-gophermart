@@ -24,7 +24,7 @@ func NewRouter(storage store.Connector, ac *provider.AccrualClient, h *Handlers)
 
 	r.Route("/api/user", func(r chi.Router) {
 		r.Use(AuthMiddleware(storage))
-		r.Use(LoadAccrualsMiddleware(ac, storage))
+		//r.Use(LoadAccrualsMiddleware(ac, storage))
 
 		//r.Post("/orders", LoadOrder(storage))
 		r.Post("/orders", h.OrderHandler.Load())
