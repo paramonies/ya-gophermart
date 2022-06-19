@@ -66,9 +66,6 @@ func main() {
 	dbConn := store.NewPgxConnector(dbPool, dbConnectTimeout)
 	log.Info(context.Background(), "create connection to postgres DB")
 
-	ac := provider.NewAccrualClient(cfg.AccrualSystemAddress, dbConn)
-	log.Info(context.Background(), "create accrual server client")
-
 	addr := cfg.RunAddress
 	log.Info(context.Background(), "start listening API server", "address", addr)
 
@@ -76,9 +73,12 @@ func main() {
 
 	var srv = http.Server{
 		Addr:    addr,
-		Handler: server.NewRouter(dbConn, ac, handlers),
+		Handler: server.NewRouter(dbConn, handlers),
 	}
 	done := make(chan struct{})
+
+	ac := provider.NewAccrualClient(cfg.AccrualSystemAddress, dbConn)
+	log.Info(context.Background(), "create accrual server client")
 
 	loadAccrualJob := job.InitJob(ac, dbConn, done)
 	loadAccrualJob.Run()
