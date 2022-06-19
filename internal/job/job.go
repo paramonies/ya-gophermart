@@ -10,7 +10,7 @@ import (
 	"github.com/paramonies/ya-gophermart/pkg/log"
 )
 
-const jobRunInterval = 3 * time.Second
+var jobRunInterval = 3 * time.Second
 
 type Job struct {
 	client  *provider.AccrualClient
